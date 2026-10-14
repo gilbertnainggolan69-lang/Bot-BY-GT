@@ -1,10 +1,11 @@
-cat > index.js << 'EOF'
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys'
 import pino from 'pino'
+import fs from 'fs'
 
 const BOT_NAME = "GILBERT"
 
 async function startGilbert() {
+    if (!fs.existsSync('./plugins')) fs.mkdirSync('./plugins')
     const { state, saveCreds } = await useMultiFileAuthState('session')
     const sock = makeWASocket({
         auth: state,
@@ -18,15 +19,15 @@ async function startGilbert() {
     })
 
     if (!sock.authState.creds.registered) {
-        console.log(`\n🔥 ${BOT_NAME} BELUM TERHUBUNG\nMasukin nomor WA lu (contoh 62812xxxx):`)
-        // GANTI NOMOR LU DISINI BRO
-        const nomor = "628xxxxxxxxxx"
+        console.log(`\n🔥 ${BOT_NAME} BELUM TERHUBUNG`)
+        // GANTI NOMOR LU DISINI BRO - CONTOH 6285820673526
+        const nomor = "6285820673526"
         setTimeout(async () => {
             try {
                 let code = await sock.requestPairingCode(nomor.replace(/[^0-9]/g,''))
-                console.log(`\n╔════════════════════╗\n║ KODE GILBERT: ${code} ║\n╚════════════════════╝\nBuka WA > Perangkat Tertaut > Tautkan dgn nomor telepon`)
-            } catch(e){ console.log("Nomor salah bro, edit index.js") }
-        }, 3000)
+                console.log(`\n╔════════════════════════╗\n║ KODE GILBERT: ${code} ║\n╚════════════════════════╝\nBuka WA > Perangkat Tertaut > Tautkan dgn nomor telepon`)
+            } catch(e){ console.log("Nomor salah bro, edit index.js", e.message) }
+        }, 4000)
     }
 
     sock.ev.on('creds.update', saveCreds)
@@ -35,7 +36,7 @@ async function startGilbert() {
         const { connection, lastDisconnect } = u
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode
-            if (reason !== DisconnectReason.loggedOut) startGilbert()
+            if (reason!== DisconnectReason.loggedOut) startGilbert()
         }
         if (connection === 'open') {
             console.log(`\n✅ HALO ${BOT_NAME} TERHUBUNG ANTI BYTES ERROR!`)
@@ -49,40 +50,79 @@ async function startGilbert() {
         const text = (m.message.conversation || m.message.extendedTextMessage?.text || "").trim()
         const prefix = "."
         if (!text.startsWith(prefix)) return
-        const cmd = text.slice(1).toLowerCase().split(" ")[0]
+        const args = text.slice(1).trim().split(/ +/)
+        const cmd = args.shift().toLowerCase()
 
         if (cmd === "ping" || cmd === "p") {
-            await sock.sendMessage(jid, { text: `*Pong!* 🏓\nBot: ${BOT_NAME} Aktif\nUptime: anti nyinkron` }, { quoted: m })
+            await sock.sendMessage(jid, { text: `*Pong!* 🏓\nBot: ${BOT_NAME} Aktif` }, { quoted: m })
         }
 
         if (cmd === "menu" || cmd === "gilbert") {
+            let pluginList = fs.readdirSync('./plugins').filter(f => f.endsWith('.js')).map(f => `│ ◦.${f.replace('.js','')}`).join('\n') || "│ ◦ Belum ada plugin"
             const menu = `
-𝗛𝗮𝗹𝗼 ${BOT_NAME} 👋
-
-> I'm *${BOT_NAME}*, your intelligent assistant powered by *${BOT_NAME}*. Whether you need information, entertainment, or utilities, I'm always ready to help.
-
-╭─「 Information 」
-╎➮ User : ${BOT_NAME}
-╎➮ Role : Owner
-╎➮ Prefix : ${prefix}
-╎➮ Uptime : Online
-╰───────────
-
-╭─「 ${BOT_NAME} TOOLS 」
-╎➮ .ping - cek bot hidup
-╎➮ .menu / .gilbert - menu ini
-╎➮ .sticker - bikin stiker (kirim gambar + caption .sticker)
-╎➮ .owner - info owner
-╰───────────
-
+┏━━━━━━━━━━━━━━━━━━┓
+┃ 🤖 ${BOT_NAME} BOT ┃
+┗━━━━━━━━━━━━━━━━━━┛
+┏━『 INFO BOT 』━┓
+│ User: ${BOT_NAME}
+│ Prefix: ${prefix}
+│ Uptime: Online
+┗━━━━━━━━━━━━━━┛
+┏━『 MAIN MENU 』━┓
+│ ◦.ping
+│ ◦.menu
+│ ◦.gilbert
+│ ◦.sticker
+│ ◦.owner
+┗━━━━━━━━━━━━━━┛
+┏━『 OWNER MENU 』━┓
+│ ◦.addplugin
+│ ◦.delplugin
+┗━━━━━━━━━━━━━━┛
+┏━『 PLUGIN LIST 』━┓
+${pluginList}
+┗━━━━━━━━━━━━━━┛
 *Powered by ${BOT_NAME} - Fix Bytes Error*
 `
             await sock.sendMessage(jid, { text: menu }, { quoted: m })
+        }
+
+        if (cmd === "owner") {
+            await sock.sendMessage(jid, { text: `Owner: wa.me/6285820673526` }, { quoted: m })
+        }
+
+        // ADDPLUGIN -.addplugin nama\nkode
+        if (cmd === "addplugin") {
+            const nama = args[0]
+            if (!nama) return sock.sendMessage(jid, { text: "Contoh:.addplugin hai\nawait sock.sendMessage(jid,{text:'halo'},{quoted:m})" }, { quoted: m })
+            let kode = text.split("\n").slice(1).join("\n")
+            if (!kode) return sock.sendMessage(jid, { text: "Kodenya mana bro? Kirim kayak gini:\n.addplugin tes\nawait sock.sendMessage(jid,{text:'tes'},{quoted:m})" }, { quoted: m })
+            fs.writeFileSync(`./plugins/${nama}.js`, kode)
+            await sock.sendMessage(jid, { text: `✅ Plugin ${nama}.js berhasil ditambahkan!` }, { quoted: m })
+        }
+
+        // DELPLUGIN -.delplugin nama
+        if (cmd === "delplugin") {
+            const nama = args[0]
+            if (!nama) return sock.sendMessage(jid, { text: "Contoh:.delplugin hai" }, { quoted: m })
+            const path = `./plugins/${nama}.js`
+            if (!fs.existsSync(path)) return sock.sendMessage(jid, { text: `❌ Plugin ${nama}.js gak ada!` }, { quoted: m })
+            fs.unlinkSync(path)
+            await sock.sendMessage(jid, { text: `🗑️ Plugin ${nama}.js dihapus!` }, { quoted: m })
+        }
+
+        // JALANKAN PLUGIN DINAMIS
+        try {
+            const pluginPath = `./plugins/${cmd}.js`
+            if (fs.existsSync(pluginPath)) {
+                const code = fs.readFileSync(pluginPath, 'utf-8')
+                const run = new Function('sock','jid','m','args','text','fs', `return (async()=>{${code}})()`)
+                await run(sock, jid, m, args, text, fs)
+            }
+        } catch(e){
+            await sock.sendMessage(jid, { text: `Error plugin ${cmd}: ${e.message}` }, { quoted: m })
         }
     })
 }
 
 startGilbert()
-EOF
-
-Tarok ini
