@@ -1,9 +1,9 @@
 {
   "name": "Bot-BY-GT",
   "type": "module",
-  "main": "index.js",
+  "main": "Index.js",
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.16",
+    "@whiskeysockets/baileys": "^6.7.16",
     "pino": "^8.19.0"
   }
 }
