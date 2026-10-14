@@ -4,6 +4,35 @@ import fs from 'fs'
 
 const BOT_NAME = "GILBERT"
 
+// === ANTI SPAM TOTAL BY GILBERT ===
+const origLog = console.log
+const origError = console.error
+const origWarn = console.warn
+
+function isSpam(txt){
+  return txt.includes('Bad MAC') ||
+         txt.includes('Failed to decrypt') ||
+         txt.includes('SessionEntry') ||
+         txt.includes('Closing session') ||
+         txt.includes('currentRatchet') ||
+         txt.includes('Decrypted message') ||
+         txt.includes('Session error')
+}
+
+console.log = (...args) => {
+  if (isSpam(args.join(' '))) return
+  origLog(...args)
+}
+console.error = (...args) => {
+  if (isSpam(args.join(' '))) return
+  origError(...args)
+}
+console.warn = (...args) => {
+  if (isSpam(args.join(' '))) return
+  origWarn(...args)
+}
+// =================================
+
 async function startGilbert() {
     if (!fs.existsSync('./plugins')) fs.mkdirSync('./plugins')
     const { state, saveCreds } = await useMultiFileAuthState('session')
@@ -13,6 +42,7 @@ async function startGilbert() {
         printQRInTerminal: false,
         syncFullHistory: false,
         shouldSyncHistoryMessage: () => false,
+        fireInitQueries: false,
         markOnlineOnConnect: false,
         browser: ["Ubuntu", "Chrome", "20.0.04"],
         getMessage: async () => undefined
@@ -20,7 +50,6 @@ async function startGilbert() {
 
     if (!sock.authState.creds.registered) {
         console.log(`\n🔥 ${BOT_NAME} BELUM TERHUBUNG`)
-        // GANTI NOMOR LU DISINI BRO - CONTOH 6285820673526
         const nomor = "6285820673526"
         setTimeout(async () => {
             try {
@@ -91,7 +120,6 @@ ${pluginList}
             await sock.sendMessage(jid, { text: `Owner: wa.me/6285820673526` }, { quoted: m })
         }
 
-        // ADDPLUGIN -.addplugin nama\nkode
         if (cmd === "addplugin") {
             const nama = args[0]
             if (!nama) return sock.sendMessage(jid, { text: "Contoh:.addplugin hai\nawait sock.sendMessage(jid,{text:'halo'},{quoted:m})" }, { quoted: m })
@@ -101,7 +129,6 @@ ${pluginList}
             await sock.sendMessage(jid, { text: `✅ Plugin ${nama}.js berhasil ditambahkan!` }, { quoted: m })
         }
 
-        // DELPLUGIN -.delplugin nama
         if (cmd === "delplugin") {
             const nama = args[0]
             if (!nama) return sock.sendMessage(jid, { text: "Contoh:.delplugin hai" }, { quoted: m })
@@ -111,7 +138,6 @@ ${pluginList}
             await sock.sendMessage(jid, { text: `🗑️ Plugin ${nama}.js dihapus!` }, { quoted: m })
         }
 
-        // JALANKAN PLUGIN DINAMIS
         try {
             const pluginPath = `./plugins/${cmd}.js`
             if (fs.existsSync(pluginPath)) {
